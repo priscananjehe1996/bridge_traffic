@@ -2274,7 +2274,7 @@ header h1 {
     <!-- Detailed Vehicle-Class ADT Table -->
     <div class="card">
       <div class="card-title">Detailed Vehicle-Class ADT Table</div>
-      <div class="card-subtitle">Detailed vehicle-class ADT from the affected traffic count profile, assigned to all 515 bridge crossings.</div>
+      <div class="card-subtitle">Detailed vehicle-class ADT from the affected traffic count profile, assigned to all <span class="dynamic-bridge-count">...</span> bridge crossings.</div>
       <div class="chart-container" style="height:360px;display:none"><canvas id="chartBridgeSelectedVehicleClass"></canvas></div>
       <div class="table-wrap" style="margin-top:12px">
         <table id="bridgeVehicleClassTable">
@@ -2311,7 +2311,7 @@ header h1 {
     <!-- Bridge Vehicle-Class Loading Table -->
     <div class="card">
       <div class="card-title">Bridge Vehicle-Class Loading Table</div>
-      <div class="card-subtitle">Bridge-level ADT including motorcycles, excluding motorcycles, and assigned major vehicle-class volumes for all 515 bridge crossings.</div>
+      <div class="card-subtitle">Bridge-level ADT including motorcycles, excluding motorcycles, and assigned major vehicle-class volumes for all <span class="dynamic-bridge-count">...</span> bridge crossings.</div>
       <div class="table-wrap">
         <table id="bridgeLoadingTable">
           <thead>
@@ -2796,6 +2796,7 @@ function buildKPIs(options = {}) {
   const row = document.getElementById('kpiRow');
   if (!row) return;
   const activeBridges = getFilteredBridges();
+  document.querySelectorAll(".dynamic-bridge-count").forEach(el => el.textContent = activeBridges.length);
   const totalLength = activeBridges.reduce((s, b) => s + (Number(b.bridge_len) || 0), 0);
   const bridgeLinks = new Set(activeBridges.map(b => b.link_no).filter(Boolean));
   const trafficRows = Array.isArray(options.trafficRows) ? options.trafficRows : null;
