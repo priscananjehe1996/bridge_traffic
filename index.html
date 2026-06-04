@@ -1959,7 +1959,113 @@ header h1 {
   #panel-bridge-traffic .chart-container {
     display: none !important;
   }
+
+/* Origin-Destination Matrix Styles */
+.od-matrix-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+#odYearFilter {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.od-matrix-container {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  max-height: 60vh;
+}
+
+#odMatrixTable {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+#odMatrixTable th, #odMatrixTable td {
+  padding: 12px 16px;
+  text-align: right;
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+}
+
+#odMatrixTable th:first-child, #odMatrixTable td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--bg-surface);
+  z-index: 2;
+  font-weight: 600;
+  border-right: 2px solid var(--border-color);
+}
+
+#odMatrixTable thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+  z-index: 1;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+  text-align: center;
+}
+
+#odMatrixTable thead th:first-child {
+  z-index: 3;
+}
+
+.od-cell {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.od-cell-empty {
+  color: var(--text-secondary);
+  opacity: 0.3;
+}
+
+.od-cell-heat-1 { background-color: rgba(99, 102, 241, 0.1); }
+.od-cell-heat-2 { background-color: rgba(99, 102, 241, 0.2); }
+.od-cell-heat-3 { background-color: rgba(99, 102, 241, 0.3); }
+.od-cell-heat-4 { background-color: rgba(99, 102, 241, 0.5); }
+.od-cell-heat-5 { background-color: rgba(99, 102, 241, 0.7); color: #fff; }
+.od-cell-heat-6 { background-color: rgba(99, 102, 241, 0.9); color: #fff; font-weight: bold; }
+
 </style>
+
+    <div id="panel-od-matrix" class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Origin - Destination Matrix</div>
+        <div class="panel-subtitle">Detailed OD Matrix for all bridge crossings. Showing traffic for <span class="od-selected-bridge-name">All Bridges</span>.</div>
+      </div>
+      <div class="od-matrix-controls">
+         <select id="odYearFilter">
+            <option value="all">All Available Years</option>
+         </select>
+         <button id="odResetBtn" class="action-btn">Reset Bridge Selection</button>
+      </div>
+      <div class="od-matrix-container">
+         <table id="odMatrixTable" class="data-table">
+            <thead id="odMatrixHead"></thead>
+            <tbody id="odMatrixBody"></tbody>
+         </table>
+         <div id="odEmptyState" class="empty-state" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <p>No Origin-Destination data available for the selected filters.</p>
+         </div>
+      </div>
+    </div>
+
 <script src="bridge_data.js"></script>
 </head>
 <body>
@@ -2715,6 +2821,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildKPIs();
   populateFilters();
   initTabs();
+  initODMatrixControls();
 
   initSpatialMap();
   setTimeout(ensureMapAnimation, 900);
@@ -3654,6 +3761,9 @@ function initTabs() {
       }
       if (tab.dataset.tab === 'bridge-traffic') {
         setTimeout(buildBridgeTrafficTab, 60);
+      }
+      if (tab.dataset.tab === 'od-matrix') {
+        setTimeout(buildODMatrixTab, 60);
       }
       if (tab.dataset.tab === 'bridge-table') {
         setTimeout(buildBridgeInventoryTab, 60);
@@ -9870,6 +9980,142 @@ function drawMap() {
 
   ctx.restore();
   drawMapLegend(ctx, canvas);
+}
+
+// --- Origin-Destination Matrix Logic ---
+function buildODMatrixTab() {
+  const backend = window.SQLBOT_TRAFFIC_INTELLIGENCE || {};
+  let odData = backend.od_matrix || [];
+  
+  // Apply year filter if not 'all'
+  const yearSelect = document.getElementById('odYearFilter');
+  if (yearSelect && yearSelect.value !== 'all') {
+    odData = odData.filter(r => String(r.year) === yearSelect.value);
+  }
+
+  // Filter by selected bridge
+  const selectedNameEl = document.querySelector('.od-selected-bridge-name');
+  if (selectedMapBridge) {
+    if (selectedNameEl) selectedNameEl.textContent = selectedMapBridge.bridge_nam + " (" + (selectedMapBridge.link_nam || "Unknown Link") + ")";
+    
+    // We try to find OD rows that match the bridge's link name
+    // Link names are like "Origin - Destination"
+    const linkName = (selectedMapBridge.link_nam || "").toLowerCase();
+    odData = odData.filter(r => {
+       const o = (r.origin || "").toLowerCase();
+       const d = (r.destination || "").toLowerCase();
+       if (!o || !d) return false;
+       return linkName.includes(o) || linkName.includes(d);
+    });
+  } else {
+    if (selectedNameEl) selectedNameEl.textContent = "All Bridges";
+  }
+  
+  const emptyState = document.getElementById('odEmptyState');
+  const table = document.getElementById('odMatrixTable');
+  
+  if (!odData.length) {
+    table.style.display = 'none';
+    emptyState.style.display = 'flex';
+    return;
+  }
+  
+  table.style.display = 'table';
+  emptyState.style.display = 'none';
+  
+  // Aggregate OD pairs (summing ADT if multiple years exist)
+  const matrix = {};
+  const origins = new Set();
+  const destinations = new Set();
+  
+  odData.forEach(row => {
+     if (!row.origin || !row.destination) return;
+     const o = row.origin;
+     const d = row.destination;
+     origins.add(o);
+     destinations.add(d);
+     
+     if (!matrix[o]) matrix[o] = {};
+     if (!matrix[o][d]) matrix[o][d] = 0;
+     matrix[o][d] += Number(row.estimated_adt || 0);
+  });
+  
+  const originsList = Array.from(origins).sort();
+  const destsList = Array.from(destinations).sort();
+  
+  // Find max ADT for heatmap scaling
+  let maxAdt = 0;
+  for (const o of originsList) {
+    for (const d of destsList) {
+      if (matrix[o] && matrix[o][d] > maxAdt) {
+        maxAdt = matrix[o][d];
+      }
+    }
+  }
+  
+  // Build Head
+  const thead = document.getElementById('odMatrixHead');
+  let headHtml = '<tr><th>Origin \\ Dest</th>';
+  destsList.forEach(d => {
+     headHtml += `<th>${htmlEscape(d)}</th>`;
+  });
+  headHtml += '</tr>';
+  thead.innerHTML = headHtml;
+  
+  // Build Body
+  const tbody = document.getElementById('odMatrixBody');
+  let bodyHtml = '';
+  
+  originsList.forEach(o => {
+     bodyHtml += `<tr><td>${htmlEscape(o)}</td>`;
+     destsList.forEach(d => {
+        const val = matrix[o] && matrix[o][d] ? matrix[o][d] : 0;
+        let heatClass = 'od-cell-empty';
+        let displayVal = '-';
+        if (val > 0) {
+           displayVal = fmt(Math.round(val));
+           const ratio = val / (maxAdt || 1);
+           if (ratio > 0.8) heatClass = 'od-cell-heat-6';
+           else if (ratio > 0.6) heatClass = 'od-cell-heat-5';
+           else if (ratio > 0.4) heatClass = 'od-cell-heat-4';
+           else if (ratio > 0.2) heatClass = 'od-cell-heat-3';
+           else if (ratio > 0.05) heatClass = 'od-cell-heat-2';
+           else heatClass = 'od-cell-heat-1';
+        }
+        bodyHtml += `<td class="od-cell ${heatClass}">${displayVal}</td>`;
+     });
+     bodyHtml += `</tr>`;
+  });
+  tbody.innerHTML = bodyHtml;
+}
+
+// Populate year filter
+function initODMatrixControls() {
+  const backend = window.SQLBOT_TRAFFIC_INTELLIGENCE || {};
+  const odData = backend.od_matrix || [];
+  const years = new Set(odData.map(r => r.year).filter(Boolean));
+  const select = document.getElementById('odYearFilter');
+  if (select && years.size > 0) {
+     const sortedYears = Array.from(years).sort((a,b)=>b-a);
+     select.innerHTML = '<option value="all">All Available Years</option>';
+     sortedYears.forEach(y => {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        select.appendChild(opt);
+     });
+     select.addEventListener('change', buildODMatrixTab);
+  }
+  
+  const resetBtn = document.getElementById('odResetBtn');
+  if (resetBtn) {
+     resetBtn.addEventListener('click', () => {
+         selectedMapBridge = null;
+         updateBridgeAnalyticsPane(null);
+         applyActiveBridgeSelectionToTables();
+         buildODMatrixTab();
+     });
+  }
 }
 </script>
 </body>
