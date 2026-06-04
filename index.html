@@ -2156,9 +2156,6 @@ header h1 {
           <tbody id="bridgeTableBody"></tbody>
         </table>
       </div>
-      <div id="bridgeInventoryScrollProxy" class="inventory-scroll-proxy" aria-label="Bridge inventory horizontal scroll bar">
-        <div id="bridgeInventoryScrollProxyInner"></div>
-      </div>
       <div class="inventory-pager" aria-label="Bridge inventory pagination">
         <button type="button" id="bridgeInventoryPrev">Previous</button>
         <span id="bridgeInventoryPageInfo">Page 1 of 1</span>
@@ -2345,7 +2342,7 @@ header h1 {
       <div class="card-title">All Bridge Traffic Analytics Table</div>
       <div class="card-subtitle">Bridge-by-bridge traffic loading table with one current assigned ADT, ADT excluding motorcycles, vehicle-class loading, speed context, and network influence screening priority.</div>
       <div class="table-wrap analytics-grid-scroll">
-        <table id="bridgeTrafficTable">
+        <table class="table" id="bridgeTrafficTable">
           <thead>
             <tr>
               <th data-sort="bridge_nam">Bridge</th>
@@ -2693,9 +2690,16 @@ let sortDir = {};
 let bridgeInventorySort = null;
 let bridgeTrafficSort = null;
 let bridgeInventoryPage = 1;
-const BRIDGE_INVENTORY_PAGE_SIZE = 75;
+const BRIDGE_INVENTORY_PAGE_SIZE = 40;
 let bridgeTrafficPage = 1;
-const BRIDGE_TRAFFIC_PAGE_SIZE = 75;
+const BRIDGE_TRAFFIC_PAGE_SIZE = 50;
+let bridgeTrafficRowsCache = { key: null, rows: null };
+let bridgeTrafficCompanionBuildToken = 0;
+let bridgeTrafficEvidenceCache = new Map();
+let bridgeManualStationCache = new Map();
+let bridgeAtcStationCache = new Map();
+let roadLinkAadtEvidenceCache = new Map();
+let atcClassProfileCache = new Map();
 let bridgeSearchIndex = [];
 let bridgeSearchIndexById = new Map();
 let bridgeSearchIndexReady = false;
@@ -2844,6 +2848,7 @@ function refreshSearchDrivenViews() {
   }
   bridgeInventoryPage = 1;
   bridgeTrafficPage = 1;
+  clearBridgeTrafficRowsCache();
   buildKPIs();
   const activePanelId = document.querySelector('.panel.active')?.id || 'panel-spatial-map';
   if (activePanelId === 'panel-bridge-table') {
@@ -2859,14 +2864,121 @@ function refreshSearchDrivenViews() {
 
 function buildBridgeInventoryTab() {
   buildBridgeTable();
-  buildBridgeInventoryClusterCharts(getFilteredBridges());
 }
 
 function buildBridgeTrafficTab() {
+  if (document.querySelector('.panel.active')?.id !== 'panel-bridge-traffic') return [];
   const rows = buildBridgeTrafficAnalytics() || [];
-  buildBridgeTrafficSummaryPanel();
-  buildBridgeLoadingPanel();
-  if (rows.length) buildKPIs({ trafficRows: rows });
+  scheduleBridgeTrafficCompanionTables(rows);
+  buildKPIs();
+}
+
+function clearBridgeTrafficRowsCache() {
+  bridgeTrafficRowsCache = { key: null, rows: null };
+  bridgeTrafficCompanionBuildToken++;
+}
+
+function clearBridgeTrafficEvidenceCache() {
+  clearBridgeTrafficRowsCache();
+  bridgeTrafficEvidenceCache.clear();
+  roadLinkAadtEvidenceCache.clear();
+  atcClassProfileCache.clear();
+  (BRIDGES || []).forEach(bridge => {
+    if (bridge && Object.prototype.hasOwnProperty.call(bridge, '_annual_weighted_growth_model_cache')) {
+      delete bridge._annual_weighted_growth_model_cache;
+    }
+  });
+}
+
+function clearBridgeSpatialEvidenceCache() {
+  clearBridgeTrafficEvidenceCache();
+  bridgeManualStationCache.clear();
+  bridgeAtcStationCache.clear();
+}
+
+function bridgeSpatialCacheKey(b, limit = '') {
+  const lat = Number(bridgeMapLat(b) ?? b?.y_new ?? 0);
+  const lng = Number(bridgeMapLon(b) ?? b?.x_new ?? 0);
+  return [
+    b?._id || b?.bridge_no || b?.bridge_nam || '',
+    normalizedLinkKey(b?.location_corrected_link_id || b?.link_no),
+    normalizedLinkKey(b?.road_no || String(b?.link_no || '').split('_')[0]),
+    Number.isFinite(lat) ? lat.toFixed(5) : '',
+    Number.isFinite(lng) ? lng.toFixed(5) : '',
+    limit
+  ].join('|');
+}
+
+function bridgeEvidenceCacheKey(b) {
+  return [
+    bridgeSpatialCacheKey(b, 'traffic-evidence'),
+    normalizeTrafficRegion(b?.region),
+    timelineMonth,
+    sqlBotTrafficBackendStatus
+  ].join('|');
+}
+
+function bridgeTrafficRowsCacheKey() {
+  const controls = bridgeTrafficControlFilters();
+  return JSON.stringify({
+    selected: selectedMapBridge?._id || null,
+    region: document.getElementById('regionFilter')?.value || 'all',
+    roadClass: document.getElementById('roadClassFilter')?.value || 'all',
+    search: normalizeSearchText(document.getElementById('bridgeSearch')?.value || ''),
+    sort: bridgeSortSelection(),
+    controls,
+    timelineYear,
+    timelineMonth,
+    sql: sqlBotTrafficBackendStatus
+  });
+}
+
+function runWhenIdle(fn, delay = 80) {
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(fn, { timeout: Math.max(250, delay + 250) });
+  } else {
+    setTimeout(fn, delay);
+  }
+}
+
+function setBridgeTrafficCompanionLoadingState() {
+  [
+    ['bridgeVehicleClassBody', 21],
+    ['bridgeLoadingBody', 15],
+    ['bridgeSeasonalFactorsBody', 22]
+  ].forEach(([id, colspan]) => {
+    const tbody = document.getElementById(id);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="${colspan}">Preparing bridge traffic records...</td></tr>`;
+    }
+  });
+}
+
+function scheduleBridgeTrafficCompanionTables(rows) {
+  const tableRows = Array.isArray(rows) ? rows : [];
+  const token = ++bridgeTrafficCompanionBuildToken;
+  const isTrafficPanelActive = () => document.querySelector('.panel.active')?.id === 'panel-bridge-traffic';
+  let fullRows = null;
+  const resolveCompanionRows = () => {
+    if (fullRows) return fullRows;
+    const expectedCount = getBridgeTrafficSourceBridges().length;
+    fullRows = tableRows.length === expectedCount ? tableRows : buildBridgeTrafficRows();
+    return fullRows;
+  };
+  if (!isTrafficPanelActive()) return;
+  setBridgeTrafficCompanionLoadingState();
+  runWhenIdle(() => {
+    if (token !== bridgeTrafficCompanionBuildToken || !isTrafficPanelActive()) return;
+    buildBridgeVehicleClassFocus(resolveCompanionRows());
+  }, 80);
+  runWhenIdle(() => {
+    if (token !== bridgeTrafficCompanionBuildToken || !isTrafficPanelActive()) return;
+    buildBridgeLoadingTableOnly(resolveCompanionRows());
+  }, 140);
+  runWhenIdle(() => {
+    if (token !== bridgeTrafficCompanionBuildToken || !isTrafficPanelActive()) return;
+    buildBridgeSeasonalFactorsTable(resolveCompanionRows());
+  }, 200);
 }
 
 function scheduleSearchDrivenViews(delay = 360) {
@@ -3228,6 +3340,7 @@ function populateFilters() {
 function clearFiltersAndSort() {
   bridgeInventoryPage = 1;
   bridgeTrafficPage = 1;
+  clearBridgeTrafficRowsCache();
   sortDir = {};
   bridgeInventorySort = null;
   bridgeTrafficSort = null;
@@ -3302,6 +3415,7 @@ function populateBridgeTrafficControls() {
   fillSelect('bridgeTrafficLinkSelect', [...new Set(BRIDGES.map(b => b.link_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })), 'All road link names');
   ['bridgeTrafficNameSelect', 'bridgeTrafficNoSelect', 'bridgeTrafficRegionSelect', 'bridgeTrafficStationSelect', 'bridgeTrafficLinkSelect'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', () => {
+      clearBridgeTrafficRowsCache();
       syncSelectedBridgeFromTrafficControls(id);
       if (selectedMapBridge) {
         setBridgeTrafficControlsForBridge(selectedMapBridge);
@@ -3363,6 +3477,20 @@ function bridgeTrafficControlFilters() {
     station: val('bridgeTrafficStationSelect'),
     linkName: val('bridgeTrafficLinkSelect')
   };
+}
+
+function bridgePassesTrafficControls(b, controls = bridgeTrafficControlFilters()) {
+  if (controls.bridgeName !== 'all' && b.bridge_nam !== controls.bridgeName) return false;
+  if (controls.bridgeNo !== 'all' && b.bridge_no !== controls.bridgeNo) return false;
+  if (controls.region !== 'all' && b.region !== controls.region) return false;
+  if (controls.station !== 'all' && b.station !== controls.station) return false;
+  if (controls.linkName !== 'all' && b.link_name !== controls.linkName) return false;
+  return true;
+}
+
+function getBridgeTrafficSourceBridges(source = getFilteredBridges()) {
+  const controls = bridgeTrafficControlFilters();
+  return sortBridgeRecords((source || []).filter(b => bridgePassesTrafficControls(b, controls)));
 }
 
 function bridgeSortSelection() {
@@ -3458,7 +3586,7 @@ function focusBridgeInventoryPageForBridge(bridge) {
 
 function focusBridgeTrafficPageForBridge(bridge) {
   if (!bridge) return;
-  const rows = buildBridgeTrafficRows();
+  const rows = getBridgeTrafficSourceBridges();
   const idx = rows.findIndex(b => b._id === bridge._id);
   bridgeTrafficPage = idx >= 0 ? Math.floor(idx / BRIDGE_TRAFFIC_PAGE_SIZE) + 1 : 1;
 }
@@ -3514,6 +3642,7 @@ function selectBridgeById(bridgeId, options = {}) {
 function initTabs() {
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
+      if (tab.classList.contains('active')) return;
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
 
@@ -3535,10 +3664,10 @@ function initTabs() {
         }, 120);
       }
       if (tab.dataset.tab === 'bridge-traffic') {
-        setTimeout(buildBridgeTrafficTab, 120);
+        setTimeout(buildBridgeTrafficTab, 60);
       }
       if (tab.dataset.tab === 'bridge-table') {
-        setTimeout(buildBridgeInventoryTab, 120);
+        setTimeout(buildBridgeInventoryTab, 60);
       }
     });
   });
@@ -3641,7 +3770,8 @@ function bindPagedTableSortHandlers(tableId, scope) {
       } else {
         bridgeTrafficSort = next;
         bridgeTrafficPage = 1;
-        buildBridgeTrafficAnalytics();
+        const rows = buildBridgeTrafficAnalytics();
+        scheduleBridgeTrafficCompanionTables(rows);
       }
     };
   });
@@ -4148,8 +4278,9 @@ function buildBridgeTable() {
   const scrollWrap = document.querySelector('.bridge-inventory-scroll');
   const headRow = document.getElementById('bridgeTableHeadRow');
   const columns = BMS_BRIDGE_INVENTORY_COLUMNS;
-  if (headRow) {
+  if (headRow && headRow.dataset.rendered !== '1') {
     headRow.innerHTML = columns.map(col => `<th data-sort="${htmlEscape(col.key)}">${htmlEscape(col.label)}</th>`).join('');
+    headRow.dataset.rendered = '1';
   }
 
   if (filtered.length === 0) {
@@ -4170,8 +4301,8 @@ function buildBridgeTable() {
       ${columns.map(col => {
         const raw = bridgeInventoryValue(b, col);
         const rendered = col.render ? col.render(b) : htmlEscape(bridgeInventoryCellText(raw, col.key));
-        const title = col.tooltip ? col.tooltip(b) : bridgeInventoryCellText(raw, col.key);
-        return `<td class="${col.highlight ? 'highlight-cell' : ''}" title="${htmlEscape(title)}">${rendered}</td>`;
+        const titleAttr = col.tooltip ? ` title="${htmlEscape(col.tooltip(b))}"` : '';
+        return `<td class="${col.highlight ? 'highlight-cell' : ''}"${titleAttr}>${rendered}</td>`;
       }).join('')}
     </tr>
   `).join('');
@@ -4182,8 +4313,6 @@ function buildBridgeTable() {
     scrollWrap.scrollLeft = 0;
   }
   updateBridgeInventoryPager(filtered.length, totalPages);
-  initBridgeInventoryHorizontalScroll();
-  buildBridgeInventoryClusterCharts(filtered);
   applyActiveBridgeSelectionToTables();
 }
 
@@ -4313,7 +4442,9 @@ function nearestAtcForBridge(b) {
 }
 
 function nearestManualStationsForBridge(b, limit = 3) {
-  return MANUAL_COUNT_STATIONS
+  const cacheKey = bridgeSpatialCacheKey(b, `manual-${limit}`);
+  if (bridgeManualStationCache.has(cacheKey)) return bridgeManualStationCache.get(cacheKey);
+  const result = MANUAL_COUNT_STATIONS
     .map(site => {
       const lat = Number(site.lat);
       const lng = Number(site.lng);
@@ -4329,6 +4460,8 @@ function nearestManualStationsForBridge(b, limit = 3) {
       return a.distanceKm - b.distanceKm;
     })
     .slice(0, limit);
+  bridgeManualStationCache.set(cacheKey, result);
+  return result;
 }
 
 function affectingAtcStationsForBridge(b, limit = 3) {
@@ -4383,6 +4516,8 @@ function affectingLegacyAtcStationsForBridge(b, limit = 3) {
 }
 
 function combinedAtcStationsForBridge(b, limit = 25) {
+  const cacheKey = bridgeSpatialCacheKey(b, `atc-${limit}`);
+  if (bridgeAtcStationCache.has(cacheKey)) return bridgeAtcStationCache.get(cacheKey);
   const bridgeLat = bridgeMapLat(b) ?? b.y_new;
   const bridgeLng = bridgeMapLon(b) ?? b.x_new;
   const bridgeLinkKey = normalizedLinkKey(b?.link_no);
@@ -4435,13 +4570,15 @@ function combinedAtcStationsForBridge(b, limit = 25) {
     };
   }).filter(Boolean);
 
-  return [...legacy, ...current]
+  const result = [...legacy, ...current]
     .sort((a, b) => {
       if (a.sameLink !== b.sameLink) return a.sameLink ? -1 : 1;
       if (a.sameRoad !== b.sameRoad) return a.sameRoad ? -1 : 1;
       return a.distanceKm - b.distanceKm;
     })
     .slice(0, limit);
+  bridgeAtcStationCache.set(cacheKey, result);
+  return result;
 }
 
 const REGIONAL_SEASONAL_ADT_FACTORS = {
@@ -4514,6 +4651,7 @@ function sqlBotTrafficStore() {
 }
 
 function refreshSqlBotTrafficViews() {
+  clearBridgeTrafficEvidenceCache();
   buildKPIs();
   const activePanelId = document.querySelector('.panel.active')?.id || 'panel-spatial-map';
   if (activePanelId === 'panel-bridge-traffic') {
@@ -4589,17 +4727,30 @@ function sqlBotOdRowsForBridge(b, limit = 8) {
 }
 
 function roadLinkAadtEvidenceFor(b) {
-  const direct = ROAD_LINK_AADT_DATA[normalizedLinkKey(b?.link_no)];
-  if (direct) return { ...direct, match_type: direct.match_type || 'exact-link' };
+  const linkKey = normalizedLinkKey(b?.location_corrected_link_id || b?.link_no);
+  const originalLinkKey = normalizedLinkKey(b?.link_no);
   const roadNo = normalizedLinkKey(b?.road_no || String(b?.link_no || '').split('_')[0]);
-  if (!roadNo) return null;
+  const cacheKey = [linkKey, originalLinkKey, roadNo].join('|');
+  if (roadLinkAadtEvidenceCache.has(cacheKey)) return roadLinkAadtEvidenceCache.get(cacheKey);
+  const direct = ROAD_LINK_AADT_DATA[linkKey] || ROAD_LINK_AADT_DATA[originalLinkKey];
+  if (direct) {
+    const result = { ...direct, match_type: direct.match_type || 'exact-link' };
+    roadLinkAadtEvidenceCache.set(cacheKey, result);
+    return result;
+  }
+  if (!roadNo) {
+    roadLinkAadtEvidenceCache.set(cacheKey, null);
+    return null;
+  }
   const candidates = Object.values(ROAD_LINK_AADT_DATA)
     .filter(r => normalizedLinkKey(r.road_no) === roadNo || normalizedLinkKey(r.link_id).startsWith(`${roadNo}_`))
     .sort((a, b) => {
       if (Number(b.latest_year || 0) !== Number(a.latest_year || 0)) return Number(b.latest_year || 0) - Number(a.latest_year || 0);
       return Number(b.observation_count || 0) - Number(a.observation_count || 0);
     });
-  return candidates[0] ? { ...candidates[0], match_type: candidates[0].match_type || 'road-corridor' } : null;
+  const result = candidates[0] ? { ...candidates[0], match_type: candidates[0].match_type || 'road-corridor' } : null;
+  roadLinkAadtEvidenceCache.set(cacheKey, result);
+  return result;
 }
 
 function classSharesToVolumes(shares, assignedAdt) {
@@ -4620,6 +4771,17 @@ function bucketVolumesFromClassVolumes(classVolumes) {
 }
 
 function classProfileFromAtcEvidence(atcStations, region, monthIndex = timelineMonth) {
+  const profileKey = [
+    normalizeTrafficRegion(region),
+    Math.max(0, Math.min(11, Number(monthIndex) || 0)),
+    (atcStations || []).map(site => [
+      site.type || '',
+      normalizeAtcId(site.id || site.name || ''),
+      Number(site.distanceKm || 0).toFixed(2),
+      Number(site.weight || 0).toFixed(5)
+    ].join(':')).join('|')
+  ].join('::');
+  if (atcClassProfileCache.has(profileKey)) return atcClassProfileCache.get(profileKey);
   const bucketTotals = { Motorcycles: 0, 'Light Vehicles': 0, Buses: 0, 'Heavy Goods': 0, Other: 0 };
   const classTotals = {};
   let weightedAdt = 0;
@@ -4669,7 +4831,7 @@ function classProfileFromAtcEvidence(atcStations, region, monthIndex = timelineM
   Object.entries(bucketTotals).forEach(([k, v]) => { bucketShares[k] = totalBucket ? v / totalBucket : 0; });
   Object.entries(classTotals).forEach(([k, v]) => { classShares[k] = totalClass ? v / totalClass : 0; });
 
-  return {
+  const result = {
     weightedAtcAdt: weightSum ? weightedAdt / weightSum : null,
     rawWeightedAtcAdt: weightSum ? rawWeightedAdt / weightSum : null,
     seasonalFactor: seasonalCorrectionFactor(region, monthIndex),
@@ -4677,9 +4839,13 @@ function classProfileFromAtcEvidence(atcStations, region, monthIndex = timelineM
     classShares,
     sourceWeight: weightSum
   };
+  atcClassProfileCache.set(profileKey, result);
+  return result;
 }
 
 function bridgeTrafficEvidence(b) {
+  const cacheKey = bridgeEvidenceCacheKey(b);
+  if (bridgeTrafficEvidenceCache.has(cacheKey)) return bridgeTrafficEvidenceCache.get(cacheKey);
   const manualStations = nearestManualStationsForBridge(b, 8);
   const allAtcStations = combinedAtcStationsForBridge(b, 25);
   const atcStations = allAtcStations.filter(s => s.type === 'current-atc');
@@ -4741,7 +4907,7 @@ function bridgeTrafficEvidence(b) {
     (manualStations.some(s => s.sameLink) ? 10 : 0)
   );
 
-  return {
+  const result = {
     manualStations,
     atcStations: allAtcStations,
     currentAtcStations: atcStations,
@@ -4764,6 +4930,8 @@ function bridgeTrafficEvidence(b) {
     classVolumes,
     evidenceScore
   };
+  bridgeTrafficEvidenceCache.set(cacheKey, result);
+  return result;
 }
 
 function roadInfluenceRowsForBridge(b, limit = 10) {
@@ -5329,16 +5497,13 @@ function weightedAnnualTrafficGrowthRate(rows) {
 }
 
 function buildBridgeTrafficRows(options = {}) {
-  const controls = bridgeTrafficControlFilters();
-  const sourceBridges = options.sourceBridges || getFilteredBridges();
-  return sortBridgeRecords(sourceBridges.filter(b => {
-    if (controls.bridgeName !== 'all' && b.bridge_nam !== controls.bridgeName) return false;
-    if (controls.bridgeNo !== 'all' && b.bridge_no !== controls.bridgeNo) return false;
-    if (controls.region !== 'all' && b.region !== controls.region) return false;
-    if (controls.station !== 'all' && b.station !== controls.station) return false;
-    if (controls.linkName !== 'all' && b.link_name !== controls.linkName) return false;
-    return true;
-  })).map(b => {
+  const useCache = !options.sourceBridges && !options.skipCache;
+  const cacheKey = useCache ? bridgeTrafficRowsCacheKey() : null;
+  if (useCache && bridgeTrafficRowsCache.key === cacheKey && Array.isArray(bridgeTrafficRowsCache.rows)) {
+    return bridgeTrafficRowsCache.rows;
+  }
+  const sourceBridges = getBridgeTrafficSourceBridges(options.sourceBridges || getFilteredBridges());
+  const rows = sourceBridges.map(b => {
     const evidence = bridgeTrafficEvidence(b);
     const annualGrowthModel = bridgeAnnualWeightedGrowthModel(b, evidence);
     const annualGrowthRate = annualGrowthModel.rate;
@@ -5451,6 +5616,8 @@ function buildBridgeTrafficRows(options = {}) {
       priority
     };
   });
+  if (useCache) bridgeTrafficRowsCache = { key: cacheKey, rows };
+  return rows;
 }
 
 function applyBridgeTrafficSort(rows) {
@@ -5458,23 +5625,30 @@ function applyBridgeTrafficSort(rows) {
 }
 
 function buildBridgeTrafficAnalytics() {
-  const rows = applyBridgeTrafficSort(buildBridgeTrafficRows());
+  const sourceBridges = getBridgeTrafficSourceBridges();
+  const needsFullRows = !!bridgeTrafficSort?.key;
+  const rows = needsFullRows ? applyBridgeTrafficSort(buildBridgeTrafficRows()) : [];
   const tbody = document.getElementById('bridgeTrafficBody');
   const emptyState = document.getElementById('bridgeTrafficEmptyState');
   const table = document.getElementById('bridgeTrafficTable');
   const scrollWrap = document.querySelector('.analytics-grid-scroll');
-  if (!tbody) return rows;
+  if (!tbody) return needsFullRows ? rows : [];
 
-  if (!rows.length) {
+  const totalRows = needsFullRows ? rows.length : sourceBridges.length;
+  if (!totalRows) {
     tbody.innerHTML = '';
     table.style.display = 'none';
     emptyState.style.display = 'block';
   } else {
     table.style.display = 'table';
     emptyState.style.display = 'none';
-    const totalPages = Math.max(1, Math.ceil(rows.length / BRIDGE_TRAFFIC_PAGE_SIZE));
+    const totalPages = Math.max(1, Math.ceil(totalRows / BRIDGE_TRAFFIC_PAGE_SIZE));
     bridgeTrafficPage = Math.max(1, Math.min(bridgeTrafficPage, totalPages));
-    const pageRows = rows.slice((bridgeTrafficPage - 1) * BRIDGE_TRAFFIC_PAGE_SIZE, bridgeTrafficPage * BRIDGE_TRAFFIC_PAGE_SIZE);
+    const pageStart = (bridgeTrafficPage - 1) * BRIDGE_TRAFFIC_PAGE_SIZE;
+    const pageEnd = bridgeTrafficPage * BRIDGE_TRAFFIC_PAGE_SIZE;
+    const pageRows = needsFullRows
+      ? rows.slice(pageStart, pageEnd)
+      : buildBridgeTrafficRows({ sourceBridges: sourceBridges.slice(pageStart, pageEnd), skipCache: true });
     tbody.innerHTML = pageRows.map(r => `
       <tr data-bridge-id="${r._id}" class="${bridgeRowActiveClass(r._id)}">
         <td class="highlight-cell">${tableCellHtml(r.bridge_nam, 'bridge_nam')}</td>
@@ -5520,19 +5694,12 @@ function buildBridgeTrafficAnalytics() {
       scrollWrap.scrollTop = 0;
       scrollWrap.scrollLeft = 0;
     }
-    updateBridgeTrafficPager(rows.length, totalPages);
+    updateBridgeTrafficPager(totalRows, totalPages);
   }
 
   bindPagedTableSortHandlers('bridgeTrafficTable', 'traffic');
-
-  // The Bridge Traffic Analytics tab is table-only; charts live in the map right pane and summary tabs.
-  buildBridgeVehicleClassFocus(rows);
-  buildBridgeSeasonalFactorsTable(rows);
-  bindTableSortHandlers('bridgeVehicleClassTable');
-  bindTableSortHandlers('bridgeLoadingTable');
-  bindTableSortHandlers('bridgeSeasonalFactorsTable');
   applyActiveBridgeSelectionToTables();
-  return rows;
+  return needsFullRows ? rows : [];
 }
 
 function updateBridgeTrafficPager(totalRows, totalPages) {
@@ -5731,7 +5898,7 @@ function buildBridgeVehicleClassFocus(rows) {
   if (!kpis || !tbody) return;
 
   rows = rows || buildBridgeTrafficRows();
-  const rankedRows = rows
+  const rankedRows = [...rows]
     .sort((a, b) => Number(b.assigned_adt_incl_motorcycles || 0) - Number(a.assigned_adt_incl_motorcycles || 0));
   const totalAssigned = rankedRows.reduce((s, r) => s + Number(r.assigned_adt_incl_motorcycles || 0), 0);
   const totalExcl = rankedRows.reduce((s, r) => s + Number(r.assigned_adt_excl_motorcycles || 0), 0);
@@ -6105,6 +6272,33 @@ function buildBridgeLoadingPanel() {
     bindTableSortHandlers('bridgeLoadingTable');
     applyActiveBridgeSelectionToTables();
   }
+}
+
+function buildBridgeLoadingTableOnly(rows = buildBridgeTrafficRows()) {
+  const tbody = document.getElementById('bridgeLoadingBody');
+  if (!tbody) return;
+  const tableRows = Array.isArray(rows) ? rows : [];
+  tbody.innerHTML = tableRows.length ? tableRows.map(r => `
+    <tr data-bridge-id="${r._id}" class="${bridgeRowActiveClass(r._id)}">
+      <td class="highlight-cell">${tableCellHtml(r.bridge_nam, 'bridge_nam')}</td>
+      <td>${tableCellHtml(r.bridge_no, 'bridge_no')}</td>
+      <td>${tableCellHtml(r.region, 'region')}</td>
+      <td><span class="pill pill-${canonicalRoadClass(r.road_class).toLowerCase()}">${canonicalRoadClass(r.road_class)}</span></td>
+      <td style="white-space:normal;min-width:170px">${tableCellHtml(r.nearest_manual_id, 'station_name')}</td>
+      <td>${fmt(r.assigned_adt_incl_motorcycles, 0)}</td>
+      <td>${fmt(r.assigned_adt_excl_motorcycles, 0)}</td>
+      <td>${formatGrowthPercent(r.annual_traffic_growth_rate)}</td>
+      <td>${tableCellHtml(r.flow_direction_model, 'flow_direction_model')}</td>
+      <td>${fmt(r.directional_adt_incl_motorcycles, 0)}</td>
+      <td>${fmt(r.directional_adt_excl_motorcycles, 0)}</td>
+      <td>${fmt(r.motorcycle_adt, 0)}</td>
+      <td>${fmt(r.light_vehicle_adt, 0)}</td>
+      <td>${fmt(r.bus_adt, 0)}</td>
+      <td>${fmt(r.heavy_goods_adt, 0)}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="15">No bridge loading records are available for the active filters.</td></tr>';
+  bindTableSortHandlers('bridgeLoadingTable');
+  applyActiveBridgeSelectionToTables();
 }
 
 // COUNT STATION COVERAGE AND CLASSIFICATION SUMMARY
@@ -7773,7 +7967,7 @@ function trafficProjectionFactor(year = timelineYear, month = timelineMonth, ann
 
 function bridgeTrafficRowForBridge(bridge) {
   if (!bridge) return null;
-  return buildBridgeTrafficRows().find(r => r._id === bridge._id) || { ...bridge };
+  return buildBridgeTrafficRows({ sourceBridges: [bridge], skipCache: true })[0] || { ...bridge };
 }
 
 function projectedBridgeTraffic(row) {
@@ -8573,6 +8767,7 @@ function auditAndCorrectBridgeDatabaseLocations() {
   BRIDGES.forEach(auditAndCorrectBridgeLocation);
   bridgeIntegrityPassComplete = true;
   bridgeIntegrityPassScheduled = false;
+  clearBridgeSpatialEvidenceCache();
 }
 
 function scheduleDeferredBridgeIntegrityPass(delay = 2200) {
@@ -8603,6 +8798,7 @@ function scheduleDeferredBridgeIntegrityPass(delay = 2200) {
       b.map_coord_snapped = true;
       b.map_snap_distance_degrees = 0;
     });
+    clearBridgeSpatialEvidenceCache();
     const activePanelId = document.querySelector('.panel.active')?.id || 'panel-spatial-map';
     if (activePanelId === 'panel-bridge-table') {
       buildBridgeInventoryTab();
@@ -8624,6 +8820,7 @@ function snapBridgesToRoads() {
     b.map_coord_snapped = true;
     b.map_snap_distance_degrees = 0;
   });
+  clearBridgeSpatialEvidenceCache();
 }
 
 function ensureMapAnimation() {
