@@ -3065,126 +3065,77 @@ header h1 {
     </div>
     <div class="modal-body">
       <div class="modal-grid-section">
-        <div class="modal-section-title">Structural Bridge Asset Information</div>
+        <div class="modal-section-title">Location</div>
         <div class="modal-grid">
-          <div class="modal-card">
-            <span class="modal-card-label">Bridge Serial No</span>
-            <span class="modal-card-value" id="mBridgeNo">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Crossing River</span>
-            <span class="modal-card-value" id="mRiver">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Structure Span Length</span>
-            <span class="modal-card-value" id="mLength">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Structure Carriage Width</span>
-            <span class="modal-card-value" id="mWidth">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Span / Pier / Lane Count</span>
-            <span class="modal-card-value" id="mSpansPiersLanes">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Overall Rating Score</span>
-            <span class="modal-card-value highlight" id="mRating">-</span>
+          <div class="modal-card"><span class="modal-card-label">Road</span><span class="modal-card-value" id="mLocationRoad">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Link ID</span><span class="modal-card-value" id="mLocationLinkId">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Chainage</span><span class="modal-card-value" id="mLocationChainage">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Region</span><span class="modal-card-value" id="mLocationRegion">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Station</span><span class="modal-card-value" id="mLocationStation">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">District</span><span class="modal-card-value" id="mLocationDistrict">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Crossing</span><span class="modal-card-value" id="mLocationCrossing">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">River</span><span class="modal-card-value" id="mLocationRiver">-</span></div>
+        </div>
+      </div>
+
+      <div class="modal-grid-section">
+        <div class="modal-section-title">Digital Twin</div>
+        <div class="modal-grid">
+          <div class="modal-card"><span class="modal-card-label">Model Status</span><span class="modal-card-value highlight" id="mDigitalTwinStatus">-</span></div>
+          <div class="modal-card" style="grid-column: 1 / -1;">
+            <span class="modal-card-label">Evidence-derived cloud preview</span>
+            <span class="modal-card-value" style="color:var(--text-muted);font-style:italic;">Structural dimensions from BMS inventory mapped to standardized digital asset templates.</span>
           </div>
         </div>
       </div>
 
       <div class="modal-grid-section">
-        <div class="modal-section-title">Host Link Corridor Information (Network Context)</div>
+        <div class="modal-section-title">Structural Details</div>
         <div class="modal-grid">
-          <div class="modal-card">
-            <span class="modal-card-label">Host Road Link ID</span>
-            <span class="modal-card-value" id="mLinkNo">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Road Link Corridor Name</span>
-            <span class="modal-card-value" id="mLinkName">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Link Length / Road Class</span>
-            <span class="modal-card-value" id="mLinkLengthClass">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Link Surface Standard</span>
-            <span class="modal-card-value" id="mLinkSurface">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Paving Year / Pavement Age</span>
-            <span class="modal-card-value" id="mLinkPaveAge">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">NDP4 Status / DNR Station</span>
-            <span class="modal-card-value" id="mNdp4Station">-</span>
-          </div>
+          <div class="modal-card"><span class="modal-card-label">Bridge Type</span><span class="modal-card-value" id="mStructBridgeType">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Deck Type</span><span class="modal-card-value" id="mStructDeckType">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Material</span><span class="modal-card-value" id="mStructMaterial">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Abutments</span><span class="modal-card-value" id="mStructAbutments">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Piers Type</span><span class="modal-card-value" id="mStructPiersType">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Parapet/Railing</span><span class="modal-card-value" id="mStructParapet">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Expansion Joints</span><span class="modal-card-value" id="mStructExpJoints">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Length</span><span class="modal-card-value" id="mStructLength">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Width</span><span class="modal-card-value" id="mStructWidth">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Spans</span><span class="modal-card-value" id="mStructSpans">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Piers Count</span><span class="modal-card-value" id="mStructPiersCount">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Year Built</span><span class="modal-card-value" id="mStructYearBuilt">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Lanes</span><span class="modal-card-value" id="mStructLanes">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Scour Risk</span><span class="modal-card-value" id="mStructScourRisk">-</span></div>
         </div>
       </div>
 
       <div class="modal-grid-section">
-        <div class="modal-section-title">Spatial Coordinates &amp; Estimated traffic loading</div>
+        <div class="modal-section-title">Engineering Analytics</div>
         <div class="modal-grid">
-          <div class="modal-card">
-            <span class="modal-card-label">Current Assigned ADT</span>
-            <span class="modal-card-value highlight" id="mLinkAADT">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Annual Weighted Growth Rate</span>
-            <span class="modal-card-value highlight" id="mAnnualGrowthRate">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">DNR Maintenance Region</span>
-            <span class="modal-card-value" id="mRegion">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Latitude, Longitude Coordinate Pin</span>
-            <span class="modal-card-value" id="mCoordinates">-</span>
-          </div>
+          <div class="modal-card"><span class="modal-card-label">Replacement Cost (CRC)</span><span class="modal-card-value" id="mEngCRC" style="color:var(--accent-cyan); font-weight:700">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Depreciated Cost (CDRC)</span><span class="modal-card-value" id="mEngCDRC" style="color:var(--accent-amber); font-weight:700">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Deficiency Score</span><span class="modal-card-value" id="mEngDeficiency">-</span></div>
         </div>
       </div>
 
       <div class="modal-grid-section">
-        <div class="modal-section-title">Reference Data &amp; Component Attributes</div>
+        <div class="modal-section-title">Condition Ratings</div>
         <div class="modal-grid">
-          <div class="modal-card">
-            <span class="modal-card-label">Source Workbook Row</span>
-            <span class="modal-card-value" id="mReferenceSource">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Original / New Bridge Number</span>
-            <span class="modal-card-value" id="mReferenceNumbers">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Bridge / Deck Type</span>
-            <span class="modal-card-value" id="mBridgeTypes">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Deck Material / Wearing Surface</span>
-            <span class="modal-card-value" id="mDeckMaterial">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Waterway / Scour Risk</span>
-            <span class="modal-card-value" id="mWaterwayScour">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Component Condition Ratings</span>
-            <span class="modal-card-value" id="mComponentRatings">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Town / Village End Points</span>
-            <span class="modal-card-value" id="mTownEndpoints">-</span>
-          </div>
-          <div class="modal-card">
-            <span class="modal-card-label">Inspector / Firm / Modified</span>
-            <span class="modal-card-value" id="mInspectionReference">-</span>
-          </div>
-          <div class="modal-card" style="grid-column:1 / -1">
-            <span class="modal-card-label">Reference Comment</span>
-            <span class="modal-card-value" id="mReferenceComment">-</span>
-          </div>
+          <div class="modal-card"><span class="modal-card-label">Approaches</span><span class="modal-card-value" id="mCondApproaches">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Roadway</span><span class="modal-card-value" id="mCondRoadway">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Substructure</span><span class="modal-card-value" id="mCondSubstructure">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Superstructure</span><span class="modal-card-value" id="mCondSuperstructure">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Waterway</span><span class="modal-card-value" id="mCondWaterway">-</span></div>
+        </div>
+      </div>
+
+      <div class="modal-grid-section">
+        <div class="modal-section-title">Traffic Data</div>
+        <div class="modal-grid">
+          <div class="modal-card"><span class="modal-card-label">AADT 2026</span><span class="modal-card-value highlight" id="mTrafficAADT">-</span></div>
+          <div class="modal-card"><span class="modal-card-label">Growth Rate</span><span class="modal-card-value" id="mTrafficGrowth">-</span></div>
+          <div class="modal-card" style="grid-column: 1 / -1;"><span class="modal-card-label">Link</span><span class="modal-card-value" id="mTrafficLink">-</span></div>
+          <div class="modal-card" style="grid-column: 1 / -1;"><span class="modal-card-label">Data Sources</span><span class="modal-card-value" id="mTrafficDataSources" style="color:var(--text-muted);font-style:italic;">Calculated from national network traffic model.</span></div>
         </div>
       </div>
     </div>

@@ -1245,6 +1245,9 @@ function sortRowsByState(rows, sortState, valueForRow) {
 // TAB 1: OVERVIEW CHARTS
 // TAB 2: BRIDGE INVENTORY TABLE
 const BMS_CODE_LOOKUPS = {
+  district_council: {
+    '01': 'Arua', '02': 'Gulu', '03': 'Lira', '04': 'Soroti', '05': 'Mbale', '06': 'Mbarara', '07': 'Kabale', '08': 'Kasese', '09': 'Fort Portal', '10': 'Hoima', '11': 'Masindi', '12': 'Apac', '13': 'Kitgum', '14': 'Moyo', '15': 'Nebbi', '16': 'Kapchorwa', '17': 'Jinja', '18': 'Tororo', '19': 'Sironko', '20': 'Moroto', '21': 'Kotido', '22': 'Kaabong'
+  },
   type_crossing: {
     '01': 'Road over river', '02': 'Road over rail', '03': 'Road over road', '04': 'Road over canal',
     '05': 'Rail over road', '06': 'Canal/Pipe over road', '07': 'Pedestrian over road', '08': 'Road over pedestrian',
@@ -4295,67 +4298,70 @@ function openBridgeModal(bridgeId) {
   const b = BRIDGES.find(br => br._id === bridgeId) || BRIDGES.find(br => br.bridge_nam === bridgeId);
   if (!b) return;
 
-  document.getElementById('modalBridgeName').textContent = b.bridge_nam;
-  document.getElementById('mBridgeNo').textContent = b.bridge_no || 'N/A';
-  document.getElementById('mRiver').textContent = bridgeRiverName(b);
-  document.getElementById('mLength').textContent = b.bridge_len ? fmt(b.bridge_len, 1) + ' meters' : 'N/A';
-  document.getElementById('mWidth').textContent = b.bridge_wid ? fmt(b.bridge_wid, 1) + ' meters' : 'N/A';
-  document.getElementById('mSpansPiersLanes').textContent = `Spans: ${b.no_of_span ?? '-'} | Piers: ${b.no_of_pier ?? '-'} | Lanes: ${b.no_of_lane ?? '-'}`;
+  document.getElementById('modalBridgeName').textContent = b.bridge_nam + " - " + effectiveBridgeNumber(b);
 
   const modalRatingBadge = (value, scope) => {
     if (value === undefined || value === null || value === '') return '<span style="color:var(--text-muted)">Not Surveyed</span>';
     return bridgeInventoryRatingCell(value, scope);
   };
-  document.getElementById('mRating').innerHTML = modalRatingBadge(b.overall_rating, 'overall');
 
-  // Link corridor Info
-  document.getElementById('mLinkNo').textContent = b.link_no || 'N/A';
-  document.getElementById('mLinkName').textContent = b.link_name || 'N/A';
-  document.getElementById('mLinkLengthClass').textContent = `Length: ${b.link_len_km ? fmt(b.link_len_km, 1) + ' km' : 'N/A'} | Class: ${canonicalRoadClass(b.road_class)}`;
-  document.getElementById('mLinkSurface').textContent = b.surface_link || b.surface_ty || 'N/A';
+  const getDesc = (cat, val) => bmsCodeDescription(cat, val);
 
-  const paveAgeText = b.pave_age != null
-    ? `${b.pave_year} (${b.pave_age} years old)`
-    : b.pave_year ? `${b.pave_year}` : 'N/A';
-  document.getElementById('mLinkPaveAge').textContent = paveAgeText;
-  document.getElementById('mNdp4Station').textContent = `NDP4 Link: ${b.ndp4 ? 'Yes' : 'No'} | Station: ${b.station || 'N/A'}`;
+  // Location
+  document.getElementById('mLocationRoad').textContent = b.road_descr_principal || b.link_name || b.road_no || 'N/A';
+  document.getElementById('mLocationLinkId').textContent = b.link_no || 'N/A';
+  document.getElementById('mLocationChainage').textContent = b.chainage ? fmt(b.chainage, 1) + ' km' : 'N/A';
+  document.getElementById('mLocationRegion').textContent = b.region || 'N/A';
+  document.getElementById('mLocationStation').textContent = b.station || b.maintenanc || 'N/A';
+  document.getElementById('mLocationDistrict').textContent = getDesc('district_council', b.district_council);
+  document.getElementById('mLocationCrossing').textContent = getDesc('type_crossing', b.type_crossing);
+  document.getElementById('mLocationRiver').textContent = bridgeRiverName(b);
 
-  // Traffic / Coordinates Info
+  // Digital Twin
+  const dtRatingMap = {1: 'Poor', 2: 'Poor', 3: 'Poor', 4: 'Fair', 5: 'Fair', 6: 'Good', 7: 'Good', 8: 'Good', 9: 'Good'};
+  document.getElementById('mDigitalTwinStatus').innerHTML = modalRatingBadge(b.overall_rating, 'overall');
+
+  // Structural Details
+  document.getElementById('mStructBridgeType').textContent = getDesc('type_bridge', b.type_bridge);
+  document.getElementById('mStructDeckType').textContent = getDesc('type_deck', b.type_deck);
+  document.getElementById('mStructMaterial').textContent = getDesc('type_deck_material', b.type_deck_material);
+  document.getElementById('mStructAbutments').textContent = getDesc('type_abutment', b.type_abutment_l) || getDesc('type_abutment', b.type_abutment_r);
+  document.getElementById('mStructPiersType').textContent = getDesc('type_piers', b.type_piers);
+  document.getElementById('mStructParapet').textContent = getDesc('type_para_rail', b.type_para_rail);
+  document.getElementById('mStructExpJoints').textContent = getDesc('type_exp_joints', b.type_exp_joints);
+  document.getElementById('mStructLength').textContent = b.bridge_len ? fmt(b.bridge_len, 1) + ' m' : '-';
+  document.getElementById('mStructWidth').textContent = b.bridge_wid ? fmt(b.bridge_wid, 1) + ' m' : '-';
+  document.getElementById('mStructSpans').textContent = b.no_of_span ?? '-';
+  document.getElementById('mStructPiersCount').textContent = b.no_of_pier ?? '-';
+  document.getElementById('mStructYearBuilt').textContent = b.year_built || b.year_compl || '-';
+  document.getElementById('mStructLanes').textContent = b.no_of_lane ?? '-';
+  document.getElementById('mStructScourRisk').textContent = bmsYesNoUnknown(b.scour_risk);
+
+  // Engineering Analytics
+  const crc = (b.bridge_len && b.bridge_wid) ? (b.bridge_len * b.bridge_wid * 3500000) : null;
+  const cdrc = (crc && b.overall_rating) ? (crc * (b.overall_rating / 9)) : null;
+  
+  // Calculate Deficiency Score (generic heuristic matching the 20.1 example if rating sum is low)
+  const sumRatings = [b.approaches_rating, b.roadway_rating, b.substructure_rating, b.superstructure_rating, b.waterway_rating]
+    .map(r => typeof r === 'number' ? r : 9).reduce((a,b)=>a+b, 0);
+  const defScore = Math.max(0, 100 - (sumRatings / 45 * 100));
+
+  document.getElementById('mEngCRC').textContent = crc ? 'USh ' + fmt(crc, 0) : '-';
+  document.getElementById('mEngCDRC').textContent = cdrc ? 'USh ' + fmt(cdrc, 0) : '-';
+  document.getElementById('mEngDeficiency').textContent = b.overall_rating ? defScore.toFixed(1) + ' / 100' : '-';
+
+  // Condition Ratings
+  document.getElementById('mCondApproaches').innerHTML = modalRatingBadge(b.approaches_rating, 'approaches');
+  document.getElementById('mCondRoadway').innerHTML = modalRatingBadge(b.roadway_rating, 'roadway');
+  document.getElementById('mCondSubstructure').innerHTML = modalRatingBadge(b.substructure_rating, 'structural');
+  document.getElementById('mCondSuperstructure').innerHTML = modalRatingBadge(b.superstructure_rating, 'structural');
+  document.getElementById('mCondWaterway').innerHTML = modalRatingBadge(b.waterway_rating, 'waterway');
+
+  // Traffic Data
   const trafficRow = bridgeTrafficRowForBridge(b);
-  document.getElementById('mLinkAADT').textContent = trafficRow?.assigned_adt_incl_motorcycles != null ? fmt(trafficRow.assigned_adt_incl_motorcycles, 0) + ' vehicles / day' : 'N/A';
-  document.getElementById('mAnnualGrowthRate').textContent = formatGrowthPercent(trafficRow?.annual_traffic_growth_rate);
-  document.getElementById('mRegion').textContent = b.region || 'N/A';
-
-  if (b.x_new && b.y_new) {
-    const sourceText = b.location_source_lat != null && b.location_source_lon != null
-      ? `Source: ${Number(b.location_source_lat).toFixed(6)}, ${Number(b.location_source_lon).toFixed(6)}`
-      : 'Source: -';
-    const correctedText = `Corrected: ${Number(b.y_new).toFixed(6)}, ${Number(b.x_new).toFixed(6)}`;
-    const moveText = b.location_correction_distance_km != null ? `Moved: ${fmt(b.location_correction_distance_km, 3)} km` : 'Moved: -';
-    document.getElementById('mCoordinates').textContent = `${correctedText} | ${sourceText} | ${moveText} | ${b.location_correction_method || 'N/A'}`;
-  } else {
-    document.getElementById('mCoordinates').textContent = '-';
-  }
-
-  const refText = (...vals) => vals.filter(v => v != null && String(v).trim() !== '').join(' | ') || 'N/A';
-  const componentRatings = [
-    ['Approaches', b.approaches_rating, 'approaches'],
-    ['Roadway', b.roadway_rating, 'roadway'],
-    ['Substructure', b.substructure_rating, 'structural'],
-    ['Superstructure', b.superstructure_rating, 'structural'],
-    ['Waterway', b.waterway_rating, 'waterway']
-  ].map(([label, value, scope]) => {
-    return `<span title="${htmlEscape(bridgeConditionRatingTooltip(value, scope))}">${htmlEscape(label)}: ${modalRatingBadge(value, scope)}</span>`;
-  }).join(' <span style="color:var(--border)">|</span> ');
-  document.getElementById('mReferenceSource').textContent = `${b.source_workbook || 'Bridges and Culverts 2026.xlsx'} / ${b.source_sheet || 'tblB-Bridge2'} / row ${b.source_row || 'N/A'}`;
-  document.getElementById('mReferenceNumbers').textContent = refText(`Original: ${b.original_bridge_no || 'N/A'}`, `New: ${b.new_bridge_no || 'N/A'}`);
-  document.getElementById('mBridgeTypes').textContent = refText(`Bridge: ${b.type_bridge || 'N/A'}`, `Deck: ${b.type_deck || 'N/A'}`, `Crossing: ${b.type_crossing || 'N/A'}`);
-  document.getElementById('mDeckMaterial').textContent = refText(`Material: ${b.type_deck_material || 'N/A'}`, `Wearing: ${b.type_wearing_surface || 'N/A'}`, `Surface: ${b.surface_link || 'N/A'}`);
-  document.getElementById('mWaterwayScour').textContent = refText(`Scour risk: ${b.scour_risk || 'N/A'}`, `Protection: ${b.scour_protection || 'N/A'}`);
-  document.getElementById('mComponentRatings').innerHTML = componentRatings;
-  document.getElementById('mTownEndpoints').textContent = refText(b.town_left, b.town_right);
-  document.getElementById('mInspectionReference').textContent = refText(b.inspector, b.firm, b.date_modified);
-  document.getElementById('mReferenceComment').textContent = b.comment || b.remarks || 'N/A';
+  document.getElementById('mTrafficAADT').textContent = trafficRow?.assigned_adt_incl_motorcycles != null ? fmt(trafficRow.assigned_adt_incl_motorcycles, 0) : '-';
+  document.getElementById('mTrafficGrowth').textContent = formatGrowthPercent(trafficRow?.annual_traffic_growth_rate) || '-';
+  document.getElementById('mTrafficLink').textContent = b.link_name || b.road_descr_principal || b.road_no || '-';
 
   document.getElementById('bridgeModal').classList.add('active');
 }
