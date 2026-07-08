@@ -1,0 +1,15 @@
+      <aside class="map-side-pane" id="bridgeAnalyticsPane">
+        <div class="pane-header">
+          <div class="pane-eyebrow">Selected Bridge Traffic Analytics</div>
+          <div class="pane-title" id="paneBridgeName">Select a bridge</div>
+          <div class="pane-subtitle" id="paneBridgeSubtitle">Click any bridge point on the map to inspect projected ADT, vehicle class loading, and bridge condition context.</div>
+        </div>
+        <div class="pane-body" id="paneBridgeBody">
+          <div class="empty-state" style="padding:28px 8px">
+            <p>No bridge selected.</p>
+          </div>
+        </div>
+      </aside>
+      </div>
+    </div>
+  </div>

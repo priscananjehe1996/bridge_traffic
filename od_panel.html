@@ -1,0 +1,31 @@
+<div id="panel-od-matrix" class="panel">
+    <div class="od-panel-layout">
+      <div>
+        <div class="panel-header" style="margin-bottom:0">
+          <div class="panel-title">Origin &#8211; Destination Matrix</div>
+          <div class="panel-subtitle">Per-bridge crossing traffic flow matrix for all <strong class="dynamic-bridge-count">546</strong> bridge crossings. Showing data for <span id="odBridgeLabel" style="color:var(--accent-cyan);font-weight:700">All Bridges</span>.</div>
+        </div>
+      </div>
+      <div class="od-summary-row" id="odSummaryRow"></div>
+      <div class="od-controls-bar">
+        <input type="text" class="od-search-input" id="odSearchInput" placeholder="Search origin, destination, or bridge..." autocomplete="off" spellcheck="false">
+        <select id="odBridgeFilter"><option value="all">All Bridges</option></select>
+        <select id="odRegionFilter2"><option value="all">All Regions</option></select>
+        <select id="odYearFilter2"><option value="all">All Years</option></select>
+        <div class="od-view-toggle">
+          <button class="active" data-view="table">Table</button>
+          <button data-view="heatmap">Heatmap</button>
+        </div>
+      </div>
+      <div id="odTableView">
+        <div class="od-table-wrap" id="odTableWrap">
+          <table class="od-table" id="odTable2">
+            <thead id="odTableHead2"></thead>
+            <tbody id="odTableBody2"></tbody>
+          </table>
+        </div>
+        <div class="od-pagination" id="odPagination"></div>
+      </div>
+      <div id="odHeatmapView" style="display:none">
+        <div class="od-heatmap-wrap" id="odHeatmapWrap">
+          <table class="od-heatmap" id="odHea

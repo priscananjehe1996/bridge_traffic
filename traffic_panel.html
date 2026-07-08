@@ -1,0 +1,344 @@
+<div class="panel" id="panel-bridge-traffic">
+    <div class="network-banner">
+      <div class="network-banner-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19V5"/><path d="M20 19V5"/><path d="M8 19V5"/><path d="M16 19V5"/><path d="M2 12h20"/></svg>
+      </div>
+      <div class="network-banner-content">
+        <h4>Bridge Traffic Analytics &amp; Vehicle-Class Loading</h4>
+        <p>Comprehensive bridge traffic analysis combining assigned daily traffic, road-class loading, regional priority, and vehicle-class volumes. Each bridge crossing is interpreted using its host road, nearby manual count stations, and automatic traffic counters.</p>
+      </div>
+    </div>
+
+    <!-- Summary KPIs -->
+    <div class="traffic-context-grid" id="bridgeSummaryKpis"></div>
+    <div class="traffic-context-grid" id="bridgeTrafficClassKpis" style="margin-top:6px"></div>
+
+    <!-- Traffic Summary Charts -->
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-title">Bridge Count by Road Class</div>
+        <div class="card-subtitle">Filtered bridge crossings grouped by national road class</div>
+        <div class="chart-container"><canvas id="chartBridgeSummaryBasis"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Bridge Loading Bands by Region</div>
+        <div class="card-subtitle">Low, medium, high, and very high assigned ADT bands across maintenance regions</div>
+        <div class="chart-container"><canvas id="chartBridgeSummaryRegionBands"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-title">Average Assigned ADT by Road Class</div>
+        <div class="card-subtitle">Bridge loading normalized by national road class A, B, C, and M</div>
+        <div class="chart-container"><canvas id="chartBridgeSummaryClassAdt"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Bridge Traffic Priority by Region</div>
+        <div class="card-subtitle">Screening priority from assigned traffic, heavy-vehicle exposure, and count evidence</div>
+        <div class="chart-container"><canvas id="chartBridgeSummaryPriority"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Bridge Traffic Analytics Charts -->
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-title">Bridge Crossings by Traffic Loading Band</div>
+        <div class="card-subtitle">Filtered bridges grouped by estimated daily link AADT</div>
+        <div class="chart-container"><canvas id="chartBridgeTrafficBands"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Heavy Vehicle Exposure by Region</div>
+        <div class="card-subtitle">Monthly heavy vehicle exposure summarized by bridge maintenance region</div>
+        <div class="chart-container"><canvas id="chartBridgeHeavyExposure"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-title">Top Assigned ADT by Bridge</div>
+        <div class="card-subtitle">Highest bridge crossings by the single current assigned ADT value</div>
+        <div class="chart-container"><canvas id="chartBridgeEvidenceAdt"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Grouped Vehicle-Class ADT by Bridge</div>
+        <div class="card-subtitle">Assigned bridge ADT split into major vehicle classes using affected automatic count stations</div>
+        <div class="chart-container"><canvas id="chartBridgeVehicleClassGrouped"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Vehicle-Class Loading Charts -->
+    <div class="traffic-context-grid" id="bridgeLoadingKpis" style="margin-top:12px"></div>
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-title">Network-Wide Bridge Vehicle-Class ADT</div>
+        <div class="card-subtitle">Total assigned daily traffic by major vehicle class across filtered bridge crossings</div>
+        <div class="chart-container"><canvas id="chartBridgeLoadingClassTotals"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Motorcycle vs Non-Motorcycle Loading by Region</div>
+        <div class="card-subtitle">Assigned ADT split into motorcycle and non-motorcycle volumes by bridge region</div>
+        <div class="chart-container"><canvas id="chartBridgeLoadingMotorcycleRegion"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-title">Heavy Vehicle Loading by Road Class</div>
+        <div class="card-subtitle">Bus and heavy goods ADT assigned to bridge crossings on each road class</div>
+        <div class="chart-container"><canvas id="chartBridgeLoadingHeavyClass"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top Bridges by Assigned ADT</div>
+        <div class="card-subtitle">Highest bridge crossings by the current assigned ADT including motorcycles</div>
+        <div class="chart-container"><canvas id="chartBridgeLoadingTopClass"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Stacked Vehicle-Class Loading -->
+    <div class="card">
+      <div class="card-title">Stacked Vehicle-Class Loading by Bridge</div>
+      <div class="card-subtitle">Major vehicle-class daily volumes for the highest assigned-ADT bridge crossings in the active filter set</div>
+      <div class="chart-container" style="height:380px"><canvas id="chartBridgeVehicleClassStacked"></canvas></div>
+    </div>
+
+    <!-- Detailed Vehicle-Class ADT Table -->
+    <div class="card">
+      <div class="card-title">Detailed Vehicle-Class ADT Table</div>
+      <div class="card-subtitle">Detailed vehicle-class ADT from the affected traffic count profile, assigned to all <span class="dynamic-bridge-count">...</span> bridge crossings.</div>
+      <div class="chart-container" style="height:360px;display:none"><canvas id="chartBridgeSelectedVehicleClass"></canvas></div>
+      <div class="table-wrap" style="margin-top:12px">
+        <table id="bridgeVehicleClassTable">
+          <thead>
+            <tr>
+              <th data-sort="bridge_nam">Bridge</th>
+              <th data-sort="bridge_no">Bridge No.</th>
+              <th data-sort="region">Region</th>
+              <th data-sort="station">Station</th>
+              <th data-sort="assigned_adt_incl_motorcycles">ADT Incl. Motorcycles</th>
+              <th data-sort="assigned_adt_excl_motorcycles">ADT Excl. Motorcycles</th>
+              <th data-sort="flow_direction_model">Flow Direction</th>
+              <th data-sort="directional_adt_incl_motorcycles">Directional ADT Incl. MC</th>
+              <th data-sort="annual_traffic_growth_rate">Annual Weighted Growth Rate</th>
+              <th data-sort="seasonal_factor">Seasonal Factor</th>
+              <th data-sort="bicycles_adt">Bicycles</th>
+              <th data-sort="carts_adt">Carts</th>
+              <th data-sort="motorcycle_adt">Motorcycles</th>
+              <th data-sort="saloon_cars_adt">Saloon Cars</th>
+              <th data-sort="light_goods_adt">Light Goods</th>
+              <th data-sort="minibuses_adt">Minibuses</th>
+              <th data-sort="medium_buses_adt">Medium Buses</th>
+              <th data-sort="large_buses_adt">Large Buses</th>
+              <th data-sort="light_trucks_adt">Light Trucks</th>
+              <th data-sort="medium_trucks_adt">Medium Trucks</th>
+              <th data-sort="heavy_trucks_adt">Heavy Trucks</th>
+            </tr>
+          </thead>
+          <tbody id="bridgeVehicleClassBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Bridge Vehicle-Class Loading Table -->
+    <div class="card">
+      <div class="card-title">Bridge Vehicle-Class Loading Table</div>
+      <div class="card-subtitle">Bridge-level ADT including motorcycles, excluding motorcycles, and assigned major vehicle-class volumes for all <span class="dynamic-bridge-count">...</span> bridge crossings.</div>
+      <div class="table-wrap">
+        <table id="bridgeLoadingTable">
+          <thead>
+            <tr>
+              <th data-sort="bridge_nam">Bridge</th>
+              <th data-sort="bridge_no">Bridge No.</th>
+              <th data-sort="region">Region</th>
+              <th data-sort="road_class">Road Class</th>
+              <th data-sort="nearest_manual_id">Manual Count Evidence</th>
+              <th data-sort="assigned_adt_incl_motorcycles">ADT Incl. MC</th>
+              <th data-sort="assigned_adt_excl_motorcycles">ADT Excl. MC</th>
+              <th data-sort="annual_traffic_growth_rate">Annual Weighted Growth Rate</th>
+              <th data-sort="flow_direction_model">Flow Direction</th>
+              <th data-sort="directional_adt_incl_motorcycles">Directional ADT Incl. MC</th>
+              <th data-sort="directional_adt_excl_motorcycles">Directional ADT Excl. MC</th>
+              <th data-sort="motorcycle_adt">Motorcycle ADT</th>
+              <th data-sort="light_vehicle_adt">Light ADT</th>
+              <th data-sort="bus_adt">Bus ADT</th>
+              <th data-sort="heavy_goods_adt">Heavy Goods ADT</th>
+            </tr>
+          </thead>
+          <tbody id="bridgeLoadingBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Per-Bridge Road-Link OD Flow Table -->
+    <div class="card">
+      <div class="card-title">Per-Bridge Road-Link OD Flow Table</div>
+      <div class="card-subtitle">Origin-destination traffic flow assigned to each bridge crossing's host road link. Two-way carriageways are shown as forward and return directional flows.</div>
+      <div class="table-wrap">
+        <table id="bridgeOdFlowTable">
+          <thead>
+            <tr>
+              <th data-sort="bridge_nam">Bridge</th>
+              <th data-sort="bridge_no">Bridge No.</th>
+              <th data-sort="link_no">Link ID</th>
+              <th data-sort="link_name">Road Link Name</th>
+              <th data-sort="road_class">Class</th>
+              <th data-sort="region">Region</th>
+              <th data-sort="station">Station</th>
+              <th data-sort="od_origin">Origin</th>
+              <th data-sort="od_destination">Destination</th>
+              <th data-sort="od_direction">Traffic Direction</th>
+              <th data-sort="current_assigned_adt">Current Assigned ADT</th>
+              <th data-sort="directional_current_adt">Directional ADT</th>
+              <th data-sort="od_estimated_adt">OD Evidence ADT</th>
+              <th data-sort="directional_od_adt">Directional OD ADT</th>
+              <th data-sort="od_year">OD Year</th>
+              <th data-sort="od_observed_days">Observed Days</th>
+              <th data-sort="od_observed_links">Observed Links</th>
+              <th data-sort="od_match_basis">Match Basis</th>
+            </tr>
+          </thead>
+          <tbody id="bridgeOdBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- All Bridge Traffic Analytics Table -->
+    <div class="card">
+      <div class="card-title">All Bridge Traffic Analytics Table</div>
+      <div class="card-subtitle">Bridge-by-bridge traffic loading table with one current assigned ADT, ADT excluding motorcycles, vehicle-class loading, speed context, and network influence screening priority.</div>
+      <div class="table-wrap analytics-grid-scroll">
+        <table class="table" id="bridgeTrafficTable">
+          <thead>
+            <tr>
+              <th data-sort="bridge_nam">Bridge</th>
+              <th data-sort="bridge_no">Bridge No.</th>
+              <th data-sort="link_no">Link ID</th>
+              <th data-sort="road_no">Road No.</th>
+              <th data-sort="link_name">Road Link Name</th>
+              <th data-sort="region">Region</th>
+              <th data-sort="station">Station</th>
+              <th data-sort="road_class">Class</th>
+              <th>Bridge Latitude</th>
+              <th>Bridge Longitude</th>
+              <th data-sort="assigned_adt_incl_motorcycles">Current Assigned ADT</th>
+              <th data-sort="annual_traffic_growth_rate">Annual Weighted Growth Rate</th>
+              <th data-sort="nearest_manual_id">Nearest Manual Count</th>
+              <th data-sort="nearest_manual_distance_km">Manual Distance</th>
+              <th>Manual Coordinates</th>
+              <th data-sort="seasonal_factor">Seasonal Factor</th>
+              <th data-sort="assigned_adt_excl_motorcycles">ADT Excl. MC</th>
+              <th data-sort="motorcycle_adt">Motorcycle ADT</th>
+              <th data-sort="light_vehicle_adt">Light ADT</th>
+              <th data-sort="bus_adt">Bus ADT</th>
+              <th data-sort="heavy_goods_adt">Heavy Goods ADT</th>
+              <th>Bicycles</th>
+              <th>Carts</th>
+              <th>Motorcycles (Class)</th>
+              <th>Saloon Cars</th>
+              <th>Light Goods</th>
+              <th>Minibuses</th>
+              <th>Medium Buses</th>
+              <th>Large Buses</th>
+              <th>Light Trucks</th>
+              <th>Medium Trucks</th>
+              <th>Heavy Trucks</th>
+              <th data-sort="count_evidence_score">Evidence</th>
+              <th data-sort="monthly_heavy">Monthly Heavy</th>
+              <th data-sort="avg_speed">Avg Speed</th>
+              <th data-sort="influence_score">Influence Score</th>
+              <th data-sort="priority">Priority</th>
+            </tr>
+          </thead>
+          <tbody id="bridgeTrafficBody"></tbody>
+        </table>
+      </div>
+
+      
+    <div class="inventory-pager">
+      <button id="bridgeTrafficPrev" disabled>&lt; Prev</button>
+      <span id="bridgeTrafficPageInfo">Page 1 / 1</span>
+      <button id="bridgeTrafficNext" disabled>Next &gt;</button>
+    </div>
+
+    <div id="bridgeTrafficEmptyState" class="empty-state" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <p>No bridge traffic analytics matched the active search filters.</p>
+      </div>
+    </div>
+
+    <!-- Monthly Seasonal Growth Factors Table -->
+    <div class="card">
+      <div class="card-title">Monthly Seasonal Growth Factors Per Bridge Crossing</div>
+      <div class="card-subtitle">Jan-Dec monthly seasonal ADT adjustment factors for each bridge crossing, paired with the annual weighted growth rate used in the bridge traffic model.</div>
+      <div class="table-wrap">
+        <table id="bridgeSeasonalFactorsTable">
+          <thead>
+            <tr>
+              <th data-sort="bridge_nam">Bridge</th>
+              <th data-sort="bridge_no">Bridge No.</th>
+              <th data-sort="link_no">Link ID</th>
+              <th data-sort="link_name">Road Link Name</th>
+              <th data-sort="region">Region</th>
+              <th data-sort="station">Station</th>
+              <th data-sort="road_class">Class</th>
+              <th data-sort="annual_traffic_growth_rate">Annual Weighted Growth Rate</th>
+              <th data-sort="monthly_seasonal_source">Seasonal Source</th>
+              <th data-sort="jan_factor">Jan</th>
+              <th data-sort="feb_factor">Feb</th>
+              <th data-sort="mar_factor">Mar</th>
+              <th data-sort="apr_factor">Apr</th>
+              <th data-sort="may_factor">May</th>
+              <th data-sort="jun_factor">Jun</th>
+              <th data-sort="jul_factor">Jul</th>
+              <th data-sort="aug_factor">Aug</th>
+              <th data-sort="sep_factor">Sep</th>
+              <th data-sort="oct_factor">Oct</th>
+              <th data-sort="nov_factor">Nov</th>
+              <th data-sort="dec_factor">Dec</th>
+              <th data-sort="seasonal_factor">Active Month Factor</th>
+            </tr>
+          </thead>
+          <tbody id="bridgeSeasonalFactorsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  
+<div class="panel" id="panel-major-culverts">
+  <div class="card" style="margin-bottom:0">
+    <div class="card-title">Major Culverts Inventory</div>
+    <div class="card-subtitle">Showing major culverts extracted from 2026 registry.</div>
+    <div class="table-wrap bridge-inventory-scroll" style="height:min(72vh, 720px);">
+      <table id="culvertTable">
+        <thead>
+          <tr id="culvertTableHeadRow">
+            <th data-sort="culvert_no" style="cursor:pointer">Culvert No</th>
+            <th data-sort="type_culvert" style="cursor:pointer">Type</th>
+            <th data-sort="road_name" style="cursor:pointer">Road Name</th>
+            <th data-sort="link_name" style="cursor:pointer">Link Name</th>
+            <th data-sort="chainage" style="cursor:pointer">Chainage</th>
+            <th data-sort="map_x" style="cursor:pointer">Map X</th>
+            <th data-sort="map_y" style="cursor:pointer">Map Y</th>
+            <th data-sort="region" style="cursor:pointer">Region</th>
+            <th data-sort="station" style="cursor:pointer">Station</th>
+            <th data-sort="span_diameter" style="cursor:pointer">Span/Diameter</th>
+            <th data-sort="waterway_cond" style="cursor:pointer">Waterway</th>
+            <th data-sort="inlet_outlet_cond" style="cursor:pointer">Inlet/Outlet</th>
+            <th data-sort="structure_cond" style="cursor:pointer">Structure</th>
+            <th data-sort="roadway_cond" style="cursor:pointer">Roadway</th>
+            <th data-sort="overall_cond" style="cursor:pointer">Overall Condition</th>
+            <th data-sort="overall_rating" style="cursor:pointer">Overall Rating</th>
+          </tr>
+        </thead>
+        <tbody id="culvertTableBody"></tbody>
+      </table>
+    </div>
+    <div class="inventory-pager">
+      <button id="culvertTablePrev" disabled>&lt; Prev</button>
+      <span id="culvertTablePageInfo">Page 1 / 1</span>
+      <button id="culvertTableNext" disabled>Next &gt;</button>
+    </div>
+    <div id="culvertEmptyState" class="empty-state" style="display:none">
+      <p>No culverts matched your filters.</p>
+    </div>
+  </div>
+</div>
+

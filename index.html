@@ -2304,14 +2304,21 @@ header h1 {
 <body>
 
 <div class="container">
-  <header>
-    <div class="header-badge">
+ <header>
+<div style="display:flex; justify-content:center; align-items:center; gap: 20px; flex-wrap: wrap;">
+  <a href="https://works.go.ug/" target="_blank" title="Ministry Of Works and Transport">
+    <img src="https://works.go.ug/wp-content/uploads/2025/09/logo.png" alt="Ministry Of Works and Transport" style="height: 70px; object-fit: contain;">
+  </a>
+  <div>
+    <div class="header-badge" style="margin-bottom: 8px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7l9-4 9 4M4 7v10h16V7"/><rect x="8" y="11" width="3" height="6"/><rect x="13" y="11" width="3" height="6"/></svg>
       Ministry of Works and Transport - Department of National Roads
     </div>
-    <h1>Bridge Traffic &amp; Network Analytics</h1>
-    <p>Focused bridge crossing dashboard showing host road links, nearby traffic count stations, classified ADT, and wider-network loading context.</p>
-  </header>
+    <h1 style="margin: 0; padding: 0;">Bridge Traffic &amp; Network Analytics</h1>
+  </div>
+</div>
+<p style="margin-top: 15px;">Focused bridge crossing dashboard showing host road links, nearby traffic count stations, classified ADT, and wider-network loading context.</p>
+</header>
 
 
 
@@ -2448,12 +2455,17 @@ header h1 {
         </div>
 
       </div>
-      <aside class="map-side-pane" id="bridgeAnalyticsPane">
-        <div class="pane-header">
-          <div class="pane-eyebrow">Selected Bridge Traffic Analytics</div>
-          <div class="pane-title" id="paneBridgeName">Select a bridge</div>
-          <div class="pane-subtitle" id="paneBridgeSubtitle">Click any bridge point on the map to inspect projected ADT, vehicle class loading, and bridge condition context.</div>
-        </div>
+     <aside class="map-side-pane" id="bridgeAnalyticsPane">
+<div class="pane-header">
+<div style="display:flex; justify-content:space-between; align-items:flex-start;">
+<div>
+<div class="pane-eyebrow">Selected Bridge Traffic Analytics</div>
+<div class="pane-title" id="paneBridgeName">Select a bridge</div>
+</div>
+<button id="closeBridgeAnalyticsPane" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+</div>
+<div class="pane-subtitle" id="paneBridgeSubtitle">Click any bridge point on the map to inspect projected ADT, vehicle class loading, and bridge condition context.</div>
+</div>
         <div class="pane-body" id="paneBridgeBody">
           <div class="empty-state" style="padding:28px 8px">
             <p>No bridge selected.</p>
@@ -2515,6 +2527,7 @@ header h1 {
       <div class="card-title">Network Statistics &amp; Summary</div>
       <div class="card-subtitle">Categorical and numerical breakdowns of the bridge and major culvert inventory.</div>
       <div id="statisticsChartsContainer" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 16px; padding-bottom: 30px;"></div>
+      <div id="statisticsTablesContainer" style="margin-top: 40px; padding-bottom: 40px;"></div>
     </div>
   </div>
 
